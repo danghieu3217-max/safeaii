@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAFE AI – Trợ lý xử lý tình huống khẩn cấp cho học sinh</title>
+    <!-- Chat AI: cần cấu hình SAFE_AI_API_URL sau khi deploy máy chủ trung gian -->
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: {
+                        navy: { 950: '#050b1a', 900: '#0a122c', 800: '#111f4d', 700: '#1b2f6e', 600: '#264294' },
+                        alertRed: { 500: '#ef4444', 600: '#dc2626', 700: '#b91c1c' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: radial-gradient(circle at 50% 15%, #152554 0%, #060c1e 100%);
+            min-height: 100vh;
+        }
+        .pulse-sos {
+            animation: pulseGlow 1.8s infinite;
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); transform: scale(1); }
+            50% { box-shadow: 0 0 35px rgba(239, 68, 68, 0.9); transform: scale(1.03); }
+        }
+
+        /* CHAT CÙNG AI */
+        .chat-message { white-space: pre-wrap; overflow-wrap: anywhere; }
+        .chat-scroll { scrollbar-width: thin; scrollbar-color: #475569 #0a122c; }
+        .chat-bubble-user { background: linear-gradient(135deg, #2563eb, #4f46e5); color: white; border-radius: 1rem 1rem .25rem 1rem; }
+        .chat-bubble-ai { background: #111f4d; border: 1px solid #334155; color: #e2e8f0; border-radius: 1rem 1rem 1rem .25rem; }
+        @media (max-width: 640px) {
+            #chat-modal-panel { height: min(88dvh, 760px); }
+        }
+
+    </style>
+</head>
+<body class="text-slate-100 flex flex-col justify-between antialiased min-h-screen select-none">
+
+    <!-- ================= THANH HEADER ================= -->
+    <header class="border-b border-slate-700/60 bg-navy-950/90 backdrop-blur-md sticky top-0 z-40 px-4 sm:px-8 py-3.5 shadow-xl">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="goToHome()">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-alertRed-500 to-alertRed-700 flex items-center justify-center text-white text-2xl shadow-lg shadow-alertRed-600/40">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-1.5">
+                        SAFE <span class="text-alertRed-500">AI</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Hệ thống an toàn học đường</p>
+                </div>
+            </div>
+
+            <!-- PHÍM GỌI CỨU TRỢ TRÊN THANH TIÊU ĐỀ -->
+            <div class="flex items-center gap-3">
+                <div class="hidden md:flex items-center gap-2 bg-navy-900/90 border border-slate-700 px-3 py-1.5 rounded-2xl text-xs font-bold text-slate-300">
+                    <span class="text-amber-400"><i class="fa-solid fa-phone-volume mr-1"></i>Hotline:</span>
+                    <span class="bg-red-950 text-red-300 px-2 py-0.5 rounded-lg border border-red-800">114 Cháy</span>
+                    <span class="bg-blue-950 text-blue-300 px-2 py-0.5 rounded-lg border border-blue-800">115 Cấp cứu</span>
+                    <span class="bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded-lg border border-emerald-800">113 Công an</span>
+                    <span class="bg-purple-950 text-purple-300 px-2 py-0.5 rounded-lg border border-purple-800">111 Trẻ em</span>
+                </div>
+                
+                <button onclick="openEmergencyModal()" class="px-4 py-2 bg-gradient-to-r from-alertRed-600 to-red-600 hover:from-alertRed-700 hover:to-red-700 text-white font-black rounded-xl text-sm flex items-center gap-2 shadow-lg shadow-alertRed-600/40 transition-transform active:scale-95">
+                    <i class="fa-solid fa-triangle-exclamation animate-bounce"></i>
+                    <span>TRỢ GIÚP KHẨN CẤP</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= NỘI DUNG CHÍNH ================= -->
+    <main class="max-w-5xl mx-auto w-full p-4 sm:p-6 lg:p-8 flex-grow flex items-center justify-center">
+
+        <!-- ===== MÀN HÌNH 1: TRANG CHỦ ===== -->
+        <section id="screen-home" class="w-full text-center py-6">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-alertRed-600/20 border border-alertRed-500/40 text-red-300 text-sm font-bold mb-6">
+                <i class="fa-solid fa-bell"></i> Huấn luyện phản xạ an toàn học sinh
+            </div>
+
+            <h2 class="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-6 tracking-tight">
+                Bình Tĩnh Phán Đoán – <br class="hidden sm:inline" />
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-amber-400 to-blue-400">
+                    Bảo Vệ Bản Thân & Bạn Bè!
+                </span>
+            </h2>
+
+            <p class="text-lg sm:text-xl text-slate-300 max-w-3xl mx-auto mb-10 leading-relaxed">
+                Trải nghiệm 5 tình huống giả lập sát thực tế: <span class="text-white font-bold">Cháy trường học, sơ cấp cứu ngất xỉu, tai nạn giao thông, phòng chống bạo lực và người lạ khả nghi</span>. Nhận ngay phân tích từ SAFE AI!
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10 text-left">
+                <div class="bg-navy-900/80 border border-slate-700/80 p-5 rounded-3xl shadow-xl">
+                    <div class="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-2xl mb-3">
+                        <i class="fa-solid fa-chalkboard-user"></i>
+                    </div>
+                    <h3 class="font-bold text-white text-lg mb-1">5 Tình huống giả lập</h3>
+                    <p class="text-slate-400 text-sm">Thiết kế theo chuẩn an toàn trường học, tối ưu khi chiếu trên máy chiếu lớp học.</p>
+                </div>
+                <div class="bg-navy-900/80 border border-slate-700/80 p-5 rounded-3xl shadow-xl">
+                    <div class="w-12 h-12 rounded-xl bg-alertRed-500/20 text-alertRed-500 flex items-center justify-center text-2xl mb-3">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <h3 class="font-bold text-white text-lg mb-1">SAFE AI phản hồi ngay</h3>
+                    <p class="text-slate-400 text-sm">Chỉ rõ điểm đúng, điểm nguy hiểm và cung cấp bí kíp sinh tồn chính xác.</p>
+                </div>
+                <div class="bg-navy-900/80 border border-slate-700/80 p-5 rounded-3xl shadow-xl">
+                    <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl mb-3">
+                        <i class="fa-solid fa-phone-volume"></i>
+                    </div>
+                    <h3 class="font-bold text-white text-lg mb-1">Gọi trợ giúp khẩn cấp</h3>
+                    <p class="text-slate-400 text-sm">Học cách báo người lớn tin cậy và nắm rõ 4 đầu số cứu hộ khẩn cấp quốc gia.</p>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <button onclick="startChallenge()" class="w-full sm:w-auto px-8 sm:px-10 py-5 bg-gradient-to-r from-alertRed-600 to-red-600 hover:from-alertRed-700 hover:to-red-700 text-white font-extrabold text-lg sm:text-xl rounded-2xl shadow-2xl shadow-alertRed-600/40 hover:scale-[1.03] active:scale-95 transition-all duration-200">
+                    <i class="fa-solid fa-play mr-3"></i> BẮT ĐẦU THỬ THÁCH
+                </button>
+                <button onclick="openChatModal()" class="w-full sm:w-auto px-8 sm:px-10 py-5 bg-gradient-to-r from-cyan-500 via-blue-600 to-violet-600 hover:from-cyan-400 hover:via-blue-500 hover:to-violet-500 text-white font-extrabold text-lg sm:text-xl rounded-2xl shadow-2xl shadow-blue-500/30 hover:scale-[1.03] active:scale-95 transition-all duration-200">
+                    <i class="fa-solid fa-comments mr-3"></i> CHAT CÙNG AI
+                </button>
+            </div>
+            <p class="text-xs text-slate-400 mt-4">Không cần đăng nhập • Chat AI cần cấu hình API • Nút trợ giúp khẩn cấp luôn sẵn sàng</p>
+        </section>
+
+        <!-- ===== MÀN HÌNH 2: TÌNH HUỐNG (QUIZ) ===== -->
+        <section id="screen-quiz" class="w-full hidden">
+            <!-- THANH TIẾN ĐỘ & ĐIỂM -->
+            <div class="bg-navy-900/90 border border-slate-700/80 rounded-2xl p-4 sm:p-5 mb-5 backdrop-blur shadow-xl">
+                <div class="flex items-center justify-between text-base font-bold mb-3">
+                    <span id="quiz-progress-text" class="text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-blue-400"></i> Tình huống 1 / 5
+                    </span>
+                    <span class="flex items-center gap-2 text-amber-300 bg-amber-500/15 px-3.5 py-1 rounded-full border border-amber-500/30">
+                        <i class="fa-solid fa-star"></i> Điểm an toàn: <span id="current-score" class="text-white font-black text-xl">0</span>
+                    </span>
+                </div>
+                <div class="w-full bg-slate-900 rounded-full h-3.5 overflow-hidden p-0.5 border border-slate-700">
+                    <div id="progress-bar-fill" class="bg-gradient-to-r from-blue-500 via-amber-400 to-alertRed-500 h-full rounded-full transition-all duration-500" style="width: 20%;"></div>
+                </div>
+            </div>
+
+            <!-- NỘI DUNG TÌNH HUỐNG -->
+            <div class="bg-navy-900/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 backdrop-blur shadow-2xl">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                    <span id="scenario-tag" class="px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30">
+                        HỎA HOẠN TRƯỜNG HỌC
+                    </span>
+                    <span id="scenario-urgency" class="text-xs font-bold text-amber-400 flex items-center gap-1.5 bg-navy-950 px-3 py-1 rounded-full border border-slate-700">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Cần phản ứng chính xác
+                    </span>
+                </div>
+
+                <div class="flex items-start gap-4 mb-4">
+                    <div class="w-14 h-14 shrink-0 rounded-2xl bg-alertRed-600/20 text-alertRed-500 border border-alertRed-500/30 flex items-center justify-center text-3xl">
+                        <i id="scenario-icon" class="fa-solid fa-fire"></i>
+                    </div>
+                    <div>
+                        <h3 id="scenario-title" class="text-2xl sm:text-3xl font-black text-white leading-snug">
+                            Tiêu đề tình huống
+                        </h3>
+                    </div>
+                </div>
+
+                <div class="bg-navy-950/80 p-4 sm:p-5 rounded-2xl border border-slate-800 text-slate-200 text-base sm:text-lg leading-relaxed mb-6">
+                    <p id="scenario-desc">Mô tả bối cảnh tình huống...</p>
+                </div>
+
+                <h4 class="text-slate-300 font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-blue-400"></i> Em chọn cách xử lý nào sau đây?
+                </h4>
+
+                <div id="options-container" class="grid grid-cols-1 gap-3 sm:gap-4"></div>
+
+                <!-- PHẢN HỒI CỦA SAFE AI -->
+                <div id="ai-feedback" class="hidden mt-6 p-5 sm:p-6 rounded-2xl border transition-all duration-300">
+                    <div class="flex items-center gap-3 mb-2.5">
+                        <div id="feedback-icon" class="w-9 h-9 rounded-xl flex items-center justify-center text-white text-lg font-bold"></div>
+                        <h4 id="feedback-verdict" class="text-xl sm:text-2xl font-black tracking-tight"></h4>
+                    </div>
+
+                    <p id="feedback-reason" class="text-slate-200 text-base leading-relaxed mb-4 pl-1"></p>
+
+                    <div class="bg-navy-950/90 p-4 sm:p-5 rounded-xl border border-slate-700/80 flex items-start gap-3.5">
+                        <i class="fa-solid fa-shield-halved text-amber-400 text-2xl shrink-0 mt-0.5"></i>
+                        <div>
+                            <span class="block text-amber-400 font-black text-xs uppercase tracking-wider mb-1">
+                                <i class="fa-solid fa-robot mr-1"></i> Chỉ dẫn an toàn từ SAFE AI:
+                            </span>
+                            <p id="feedback-guide" class="text-slate-200 text-sm sm:text-base leading-relaxed"></p>
+                        </div>
+                    </div>
+
+                    <div class="text-right mt-5">
+                        <button id="btn-next" onclick="nextQuestion()" class="px-8 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-base rounded-xl shadow-lg transition-transform active:scale-95">
+                            Tiếp tục <i class="fa-solid fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== MÀN HÌNH 3: TỔNG KẾT ===== -->
+        <section id="screen-result" class="w-full hidden py-6 text-center">
+            <div class="bg-navy-900/90 border border-slate-700/80 rounded-3xl p-6 sm:p-10 backdrop-blur shadow-2xl max-w-3xl mx-auto">
+                <div id="result-badge-box" class="w-24 h-24 mx-auto rounded-3xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-5xl mb-5">
+                    <i class="fa-solid fa-medal"></i>
+                </div>
+
+                <h2 class="text-3xl sm:text-4xl font-black text-white mb-1">Hoàn Thành Đợt Huấn Luyện!</h2>
+                <p id="result-rank" class="text-xl font-bold text-amber-400 mb-6 uppercase tracking-wider">Huy Hiệu: Dũng Sĩ An Toàn</p>
+
+                <div class="bg-navy-950/80 p-5 sm:p-6 rounded-2xl border border-slate-800 mb-8 flex justify-around items-center">
+                    <div>
+                        <span class="block text-xs uppercase text-slate-400 font-bold tracking-wider">Tổng điểm an toàn</span>
+                        <div class="flex items-baseline justify-center gap-1">
+                            <span id="final-score" class="text-4xl sm:text-5xl font-black text-white">0</span>
+                            <span class="text-slate-400 text-xl font-bold">/ 100</span>
+                        </div>
+                    </div>
+                    <div class="w-px h-12 bg-slate-800"></div>
+                    <div>
+                        <span class="block text-xs uppercase text-slate-400 font-bold tracking-wider">Đánh giá khả năng</span>
+                        <span id="final-level" class="text-2xl sm:text-3xl font-extrabold text-emerald-400">Xuất Sắc</span>
+                    </div>
+                </div>
+
+                <div class="text-left bg-navy-950/70 p-5 sm:p-6 rounded-2xl border border-slate-800 mb-8">
+                    <h4 class="font-black text-white text-base mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-key text-amber-400"></i> 4 NGUYÊN TẮC VÀNG SINH TỒN HỌC ĐƯỜNG:
+                    </h4>
+                    <ul class="space-y-3 text-slate-300 text-sm sm:text-base">
+                        <li class="flex items-start gap-2.5">
+                            <i class="fa-solid fa-circle-check text-emerald-400 mt-1 shrink-0"></i>
+                            <span><strong>1. Mạng sống là số 1:</strong> Không tiếc tài sản, không hiếu kỳ đứng xem hay quay phim khi có tai nạn, cháy nổ.</span>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <i class="fa-solid fa-circle-check text-emerald-400 mt-1 shrink-0"></i>
+                            <span><strong>2. Luôn báo người lớn đáng tin cậy:</strong> Thầy cô giáo, bác bảo vệ trường, cô y tế hoặc bố mẹ luôn là chỗ dựa an toàn nhất.</span>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <i class="fa-solid fa-circle-check text-emerald-400 mt-1 shrink-0"></i>
+                            <span><strong>3. 4 Tổng đài cứu nạn miễn phí:</strong> <span class="text-red-400 font-bold">114</span> (Cháy/Cứu nạn) – <span class="text-blue-400 font-bold">115</span> (Cấp cứu) – <span class="text-emerald-400 font-bold">113</span> (Công an) – <span class="text-purple-400 font-bold">111</span> (Bảo vệ trẻ em 24/7).</span>
+                        </li>
+                        <li class="flex items-start gap-2.5">
+                            <i class="fa-solid fa-circle-check text-emerald-400 mt-1 shrink-0"></i>
+                            <span><strong>4. Báo tin bình tĩnh và rõ ràng:</strong> Đọc đúng tên, vị trí phòng/địa chỉ trường, sự việc gì đang xảy ra và số người gặp nguy.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button onclick="startChallenge()" class="px-8 py-4 bg-gradient-to-r from-alertRed-600 to-red-600 hover:from-alertRed-700 hover:to-red-700 text-white font-black text-lg rounded-xl shadow-xl transition-all active:scale-95">
+                        <i class="fa-solid fa-rotate-left mr-2"></i> Làm lại thử thách
+                    </button>
+                    <button onclick="openEmergencyModal()" class="px-8 py-4 bg-navy-800 hover:bg-navy-700 text-amber-300 font-bold rounded-xl border border-amber-500/40 transition-colors">
+                        <i class="fa-solid fa-phone-volume mr-2"></i> Mở sổ tay số khẩn cấp
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ================= NÚT SOS NỔI CỐ ĐỊNH Ở GÓC DƯỚI (FLOATING SOS BUTTON) ================= -->
+    <div class="fixed bottom-5 right-5 z-40">
+        <button onclick="openEmergencyModal()" class="pulse-sos flex items-center gap-3 bg-gradient-to-r from-alertRed-600 to-red-600 hover:from-alertRed-700 hover:to-red-700 text-white font-black px-5 py-4 rounded-2xl shadow-2xl border-2 border-red-400 text-base sm:text-lg transition-transform active:scale-95">
+            <i class="fa-solid fa-phone-volume text-2xl"></i>
+            <span class="tracking-wide">TRỢ GIÚP KHẨN CẤP</span>
+        </button>
+    </div>
+
+    <!-- ================= NÚT CHAT CÙNG AI NỔI ================= -->
+    <div class="fixed bottom-5 left-5 z-40">
+        <button onclick="openChatModal()" aria-label="Mở Chat cùng AI" class="flex items-center gap-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black px-4 py-3.5 rounded-2xl shadow-2xl shadow-blue-500/30 border border-cyan-300/50 text-sm sm:text-base transition-transform active:scale-95">
+            <i class="fa-solid fa-robot text-xl"></i>
+            <span>CHAT CÙNG AI</span>
+        </button>
+    </div>
+
+    <!-- ================= CỬA SỔ CHAT AI ================= -->
+    <div id="chat-modal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-5" role="dialog" aria-modal="true" aria-labelledby="chat-title">
+        <div id="chat-modal-panel" class="w-full max-w-2xl h-[min(88vh,760px)] flex flex-col overflow-hidden rounded-3xl border border-cyan-400/40 bg-navy-950 shadow-2xl shadow-blue-900/40">
+            <div class="flex items-center justify-between gap-3 border-b border-slate-700 bg-gradient-to-r from-navy-900 via-blue-950 to-violet-950 px-4 py-4 sm:px-6">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 text-xl text-white shadow-lg">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h3 id="chat-title" class="text-lg sm:text-xl font-black text-white">Chat cùng SAFE AI</h3>
+                        <p class="text-xs text-cyan-200">Trợ lý an toàn học đường</p>
+                    </div>
+                </div>
+                <button onclick="closeChatModal()" aria-label="Đóng cửa sổ chat" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-slate-200 transition hover:bg-slate-700 hover:text-white">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="border-b border-slate-800 bg-slate-900/70 px-4 py-3">
+                <p class="text-xs leading-relaxed text-slate-300"><i class="fa-solid fa-shield-halved mr-1 text-cyan-300"></i> Hãy mô tả tình huống của bạn. Nếu nguy hiểm đang xảy ra ngay lúc này, hãy đến nơi an toàn và gọi người lớn hoặc số khẩn cấp phù hợp.</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    <button onclick="useChatPrompt('Nếu phát hiện cháy ở trường, em cần làm gì?')" class="rounded-full border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:border-cyan-400 hover:text-cyan-200">🔥 Khi có cháy</button>
+                    <button onclick="useChatPrompt('Bạn em bất tỉnh, em nên xử lý thế nào?')" class="rounded-full border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:border-cyan-400 hover:text-cyan-200">🩺 Sơ cứu</button>
+                    <button onclick="useChatPrompt('Em đang bị bắt nạt và đe dọa, em nên làm gì?')" class="rounded-full border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-200 hover:border-cyan-400 hover:text-cyan-200">🛡️ Bị đe dọa</button>
+                </div>
+            </div>
+
+            <div id="chat-messages" class="chat-scroll flex-1 space-y-4 overflow-y-auto bg-gradient-to-b from-slate-950 to-navy-950 p-4 sm:p-6" aria-live="polite">
+                <div class="flex items-start gap-2.5">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-300"><i class="fa-solid fa-robot"></i></div>
+                    <div class="chat-bubble-ai chat-message max-w-[88%] p-3.5 text-sm leading-relaxed">Xin chào! Mình là SAFE AI. Bạn có thể hỏi về kỹ năng an toàn, xử lý tình huống ở trường hoặc cách tìm sự trợ giúp. Hãy cho mình biết bạn cần hỗ trợ gì nhé!</div>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-700 bg-navy-900 p-3 sm:p-4">
+                <div id="chat-config-notice" class="mb-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-200">
+                    Chưa kết nối máy chủ AI. Cần cấu hình địa chỉ Cloudflare Worker và Gemini API key để AI trả lời thật.
+                </div>
+                <form id="chat-form" class="flex items-end gap-2" onsubmit="sendChatMessage(event)">
+                    <label for="chat-input" class="sr-only">Nhập câu hỏi cho SAFE AI</label>
+                    <textarea id="chat-input" rows="1" maxlength="4000" placeholder="Nhập câu hỏi của bạn..." class="max-h-32 min-h-[48px] flex-1 resize-y rounded-2xl border border-slate-600 bg-slate-950 px-4 py-3 text-base text-white outline-none placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20" required></textarea>
+                    <button id="chat-send-btn" type="submit" class="flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 font-black text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
+                        <i class="fa-solid fa-paper-plane"></i><span class="hidden sm:inline">Gửi</span>
+                    </button>
+                </form>
+                <p class="mt-2 text-center text-[10px] leading-relaxed text-slate-500">AI có thể trả lời sai. Không nhập mật khẩu, thông tin cá nhân nhạy cảm hoặc dữ liệu bí mật.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL TRỢ GIÚP KHẨN CẤP & GỌI CỨU HỘ TOÀN DIỆN ================= -->
+    <div id="emergency-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+        <div class="bg-navy-900 border-2 border-alertRed-500/80 rounded-3xl p-6 sm:p-8 max-w-2xl w-full max-h-[92vh] overflow-y-auto custom-scrollbar shadow-2xl relative text-left">
+            
+            <!-- Nút đóng -->
+            <button onclick="closeEmergencyModal()" class="absolute top-5 right-5 w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center text-xl transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <!-- Tiêu đề modal -->
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 rounded-2xl bg-alertRed-600 flex items-center justify-center text-white text-2xl shadow-lg shadow-alertRed-600/50">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-black text-white">TRUNG TÂM TRỢ GIÚP KHẨN CẤP</h3>
+                    <p class="text-sm text-red-300 font-semibold">Kết nối ngay với người lớn và lực lượng cứu hộ</p>
+                </div>
+            </div>
+
+            <!-- Nút còi hú báo động SOS Web Audio API -->
+            <div class="bg-alertRed-600/20 border border-alertRed-500/40 p-4 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3 text-center sm:text-left">
+                    <i class="fa-solid fa-bullhorn text-alertRed-500 text-3xl shrink-0"></i>
+                    <div>
+                        <h4 class="font-black text-white text-base">Còi báo động SOS khẩn cấp</h4>
+                        <p class="text-xs text-slate-300">Phát âm thanh báo động to để thu hút sự chú ý của mọi người xung quanh</p>
+                    </div>
+                </div>
+                <button id="btn-siren" onclick="toggleSiren()" class="w-full sm:w-auto px-5 py-2.5 bg-alertRed-600 hover:bg-alertRed-500 text-white font-extrabold rounded-xl text-sm shrink-0 flex items-center justify-center gap-2 shadow-lg">
+                    <i class="fa-solid fa-volume-high"></i>
+                    <span id="siren-status-text">Bật còi hú SOS</span>
+                </button>
+            </div>
+
+            <!-- Bấm gọi trực tiếp 4 tổng đài quốc gia -->
+            <h4 class="text-amber-400 font-black text-sm uppercase tracking-wider mb-3 flex items-center gap-2">
+                <i class="fa-solid fa-phone-flip"></i> Bấm để gọi ngay số cứu hộ miễn phí:
+            </h4>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                <!-- 114 -->
+                <a href="tel:114" class="flex items-center justify-between p-3.5 rounded-2xl bg-red-950/60 border border-red-800/80 hover:bg-red-900/60 transition-colors group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center text-white text-lg font-bold">114</div>
+                        <div>
+                            <span class="block font-black text-white text-base group-hover:text-red-300">Cứu Hỏa & Cứu Nạn</span>
+                            <span class="text-xs text-slate-400">Cháy nổ, mắc kẹt, đuối nước</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-phone text-red-400 text-lg mr-2"></i>
+                </a>
+
+                <!-- 115 -->
+                <a href="tel:115" class="flex items-center justify-between p-3.5 rounded-2xl bg-blue-950/60 border border-blue-800/80 hover:bg-blue-900/60 transition-colors group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white text-lg font-bold">115</div>
+                        <div>
+                            <span class="block font-black text-white text-base group-hover:text-blue-300">Cấp Cứu Y Tế</span>
+                            <span class="text-xs text-slate-400">Bất tỉnh, tai nạn, ngộ độc</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-phone text-blue-400 text-lg mr-2"></i>
+                </a>
+
+                <!-- 113 -->
+                <a href="tel:113" class="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-950/60 border border-emerald-800/80 hover:bg-emerald-900/60 transition-colors group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white text-lg font-bold">113</div>
+                        <div>
+                            <span class="block font-black text-white text-base group-hover:text-emerald-300">Cảnh Sát / Công An</span>
+                            <span class="text-xs text-slate-400">Bắt cóc, bạo lực, trộm cắp</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-phone text-emerald-400 text-lg mr-2"></i>
+                </a>
+
+                <!-- 111 -->
+                <a href="tel:111" class="flex items-center justify-between p-3.5 rounded-2xl bg-purple-950/60 border border-purple-800/80 hover:bg-purple-900/60 transition-colors group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-purple-600 flex items-center justify-center text-white text-lg font-bold">111</div>
+                        <div>
+                            <span class="block font-black text-white text-base group-hover:text-purple-300">Bảo Vệ Trẻ Em</span>
+                            <span class="text-xs text-slate-400">Bị bắt nạt, xâm hại, bạo hành</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-phone text-purple-400 text-lg mr-2"></i>
+                </a>
+            </div>
+
+            <!-- Kịch bản 4 bước nói chuyện chuẩn khi gọi tổng đài -->
+            <div class="bg-navy-950/90 border border-slate-700/80 p-5 rounded-2xl mb-6">
+                <h4 class="font-black text-amber-400 text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-comment-dots"></i> Kịch bản 4 câu vàng khi gọi điện thoại cứu nạn:
+                </h4>
+                <div class="space-y-2 text-sm text-slate-300">
+                    <p><strong class="text-white">1. Em là ai:</strong> "Cháu tên là... học sinh trường..."</p>
+                    <p><strong class="text-white">2. Đang ở đâu:</strong> "Địa chỉ hiện tại là số... đường... (hoặc phòng học số... tầng...)"</p>
+                    <p><strong class="text-white">3. Việc gì xảy ra:</strong> "Ở đây đang xảy ra (cháy lớn / tai nạn ngất xỉu / có kẻ xấu đe dọa)..."</p>
+                    <p><strong class="text-white">4. Có bao nhiêu người:</strong> "Có khoảng... người đang bị nguy hiểm, xin hãy đến cứu gấp!"</p>
+                </div>
+            </div>
+
+            <!-- Người lớn tin cậy tại chỗ -->
+            <div class="bg-blue-950/40 border border-blue-900/60 p-4 rounded-2xl flex items-start gap-3">
+                <i class="fa-solid fa-user-shield text-blue-400 text-2xl shrink-0 mt-1"></i>
+                <div class="text-sm">
+                    <span class="font-bold text-white block">Tại trường học, hãy tìm ngay đến:</span>
+                    <span class="text-slate-300">Bác bảo vệ cổng trường, Thầy cô giáo dạy trên lớp, Thầy cô Tổng phụ trách/Giám thị, hoặc Cô y tế học đường.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= FOOTER ================= -->
+    <footer class="border-t border-slate-800 bg-navy-950/90 py-4 px-6 text-center text-xs text-slate-400">
+        <p>© SAFE AI – Nền tảng huấn luyện kỹ năng thoát hiểm & xử lý tình huống khẩn cấp học sinh Việt Nam.</p>
+    </footer>
+
+    <!-- ================= JAVASCRIPT LOGIC ================= -->
+    <script>
+        // 5 TÌNH HUỐNG THỰC TẾ
+        const scenarios = [
+            {
+                id: 1,
+                tag: "HỎA HOẠN TRƯỜNG HỌC",
+                urgency: "Nguy cấp độ 1",
+                icon: "fa-fire-flame-curved",
+                title: "Khói đen dày đặc bốc lên từ tầng dưới khi cả lớp đang học bài",
+                desc: "Tiếng chuông báo cháy trường reo dồn dập. Bạn ngửi thấy mùi khét lẹt và khói đen bắt đầu tràn vào hành lang lớp học ở tầng 2. Cả lớp đang xôn xao lo lắng.",
+                options: [
+                    {
+                        text: "A. Cùng bạn bè chen lấn chạy thật nhanh vào thang máy hoặc xô đẩy nhau xuống cầu thang bộ.",
+                        isCorrect: false,
+                        points: 0,
+                        feedback: "CỰC KỲ NGUY HIỂM! Thang máy khi có hỏa hoạn sẽ bị ngắt điện hoặc biến thành lò hút khói độc. Xô đẩy ở cầu thang sẽ gây ra thảm họa giẫm đạp tử vong.",
+                        safeGuide: "Tuyệt đối không dùng thang máy. Giữ bình tĩnh, lắng nghe giáo viên hướng dẫn xếp hàng di chuyển theo lối cầu thang thoát hiểm bên hông."
+                    },
+                    {
+                        text: "B. Lấy khăn/vạt áo nhúng nước bịt mũi miệng, cúi thấp người men sát tường thoát ra sân trường.",
+                        isCorrect: true,
+                        points: 20,
+                        feedback: "CHÍNH XÁC XUẤT SẮC! Khói độc luôn bay lên cao; cúi thấp giúp bạn có không khí sạch để thở. Khăn ướt hoạt động như phin lọc giữ lại khí CO và bụi độc.",
+                        safeGuide: "Men sát tường để không bị mất phương hướng. Khi ra đến sân trường thoáng rộng, tập hợp ngay theo lớp để điểm danh và báo lực lượng cứu hỏa 114."
+                    },
+                    {
+                        text: "C. Chạy vào nhà vệ sinh đóng chặt cửa lại và xả đầy bồn nước để trốn khói.",
+                        isCorrect: false,
+                        points: 5,
+                        feedback: "KHÔNG NÊN! Nhà vệ sinh trường học rất kín, không có lối thoát hiểm phụ. Khói độc luồn qua khe cửa sẽ làm bạn ngạt thở, gây khó khăn cho lính cứu hỏa tìm kiếm.",
+                        safeGuide: "Chỉ đóng cửa phòng khi mọi lối thoát đã bị lửa bít kín, đồng thời dùng vải ướt chèn kín khe cửa và ra cửa sổ vẫy khăn sáng màu kêu cứu to."
+                    },
+                    {
+                        text: "D. Ở lại phòng nấn ná thu gom cặp sách, điện thoại và đồ dùng cá nhân trước khi chạy.",
+                        isCorrect: false,
+                        points: 0,
+                        feedback: "SAI LẦM CHẾT NGƯỜI! Trong đám cháy, thời gian tính bằng giây. Chỉ hít phải 2-3 hơi khói độc đậm đặc là nạn nhân đã có thể bất tỉnh.",
+                        safeGuide: "Bỏ lại tất cả cặp sách, đồ đạc. Tính mạng của bản thân và bạn bè là quý giá nhất!"
+                    }
+                ]
+            },
+            {
+                id: 2,
+                tag: "SƠ CẤP CỨU HỌC ĐƯỜNG",
+                urgency: "Y tế khẩn cấp",
+                icon: "fa-heart-pulse",
+                title: "Một bạn cùng lớp ngã quỵ bất tỉnh trong giờ học thể dục",
+                desc: "Sau phần chạy bền dưới trời nắng gắt, một bạn bất ngờ ngã gục xuống sân, gọi hỏi không đáp lời, hơi thở yếu ớt. Xung quanh các bạn học sinh vây kín xem xét.",
+                options: [
+                    {
+                        text: "A. Yêu cầu các bạn lùi ra lấy không khí, báo ngay cho giáo viên/cô y tế, kiểm tra nhịp thở.",
+                        isCorrect: true,
+                        points: 20,
+                        feedback: "HOÀN TOÀN CHÍNH XÁC! Người bị ngất thiếu oxy lên não trầm trọng nên cần không gian thoáng đãng. Báo ngay nhân viên y tế trường là quyết định sáng suốt nhất.",
+                        safeGuide: "Đặt bạn nằm nơi râm mát, nới lỏng cổ áo. Nếu bạn còn thở, đặt nằm nghiêng an toàn để tránh tụt lưỡi gây ngạt. Báo người lớn gọi cấp cứu 115 nếu bạn chưa tỉnh."
+                    },
+                    {
+                        text: "B. Xúm lại đông người, bế xốc bạn ngồi dậy rồi lắc mạnh liên tục để bạn tỉnh lại.",
+                        isCorrect: false,
+                        points: 0,
+                        feedback: "RẤT NGUY HIỂM! Nếu bạn bị chấn thương đầu/cổ khi ngã hoặc tụt huyết áp, việc bế xốc hay lắc mạnh có thể gây chấn thương đốt sống cổ dẫn tới liệt hoặc ngừng tim.",
+                        safeGuide: "Giữ đầu thẳng, không lay giật mạnh cổ hay lưng người bị nạn."
+                    },
+                    {
+                        text: "C. Cạy miệng bạn ra và ép bạn uống thật nhiều nước ngọt hoặc sữa.",
+                        isCorrect: false,
+                        points: 0,
+                        feedback: "CỰC KỲ SAI LẦM! Người bất tỉnh đã mất phản xạ nuốt. Đổ nước hay sữa vào miệng sẽ làm chất lỏng tràn vào đường thở gây ngạt phổi dẫn đến tử vong nhanh chóng.",
+                        safeGuide: "Tuyệt đối KHÔNG cho người đang hôn mê hay bất tỉnh ăn/uống bất kỳ thứ gì qua đường miệng."
+                    },
+                    {
+                        text: "D. Tự rủ một bạn khác cùng cõng bạn chạy bộ ra trạm xá bên ngoài cổng trường.",
+                        isCorrect: false,
+                        points: 5,
+                        feedback: "CHƯA ĐÚNG! Thể lực học sinh yếu, cõng trên lưng rất dễ trượt ngã làm rơi bạn, gây thêm chấn thương gãy xương.",
+                        safeGuide: "Phòng y tế trường học có sẵn cáng cứu thương và túi cấp cứu chuyên dụng. Hãy chạy nhanh đi gọi cô y tế hỗ trợ tại chỗ."
+                    }
+                ]
+            },
+            {
+                id: 3,
+                tag: "TAI NẠN GIAO THÔNG",
+                urgency: "Hiện trường nguy hiểm",
+                icon: "fa-car-burst",
+                title: "Va chạm giao thông nghiêm trọng ngay trước cổng trường giờ tan học",
+                desc: "Vừa bước ra khỏi cổng trường, bạn thấy một vụ va chạm mạnh giữa xe máy và xe đạp điện. Một người bị ngã nằm bất động giữa lòng đường xe cộ qua lại đông đúc.",
+                options: [
+                    {
+                        text: "A. Lao ngay ra giữa đường kéo lê người bị nạn vào lề vỉa hè.",
+                        isCorrect: false,
+                        points: 5,
+                        feedback: "KHÔNG NÊN! Kéo lê có thể làm tổn thương nặng tủy sống nếu nạn nhân bị gãy xương kín. Hơn nữa, học sinh đứng giữa dòng xe cộ rất dễ bị xe khác đâm phải.",
+                        safeGuide: "Bảo vệ an toàn cho bản thân trước! Việc di chuyển người bị nạn cần có người lớn và phương tiện chắn đường cảnh báo."
+                    },
+                    {
+                        text: "B. Đứng tại vị trí an toàn vỉa hè, hô hoán bác bảo vệ/người lớn gần nhất, gọi 115 và 113.",
+                        isCorrect: true,
+                        points: 20,
+                        feedback: "XỬ LÝ RẤT THÔNG MINH! Bạn giữ an toàn tuyệt đối cho mình, đồng thời huy động người lớn có chuyên môn và gọi đúng tổng đài cấp cứu chuyên nghiệp.",
+                        safeGuide: "Khi gọi 115 hoặc 113, nói rõ: 'Trước cổng trường... đường..., có người ngã bất tỉnh cần xe cấp cứu đến gấp'."
+                    },
+                    {
+                        text: "C. Cầm điện thoại quay video phát trực tiếp lên mạng xã hội để xin ý kiến cứu nạn.",
+                        isCorrect: false,
+                        points: 0,
+                        feedback: "VÔ CẢM VÀ SAI QUY ĐỊNH! Quay phim chụp ảnh người bị nạn phát tán lên mạng không giúp cứu nạn, vi phạm quyền riêng tư và gây ùn tắc giao thông.",
+                        safeGuide: "Điện thoại trong lúc khẩn cấp chỉ dùng để gọi 115 (Cấp cứu), 113 (Công an) hoặc gọi cho bố mẹ trợ giúp."
+                    },
+                    {
+                        text: "D. Làm ngơ coi như không thấy và đi về nhà vì nghĩ đã có người khác lo.",
+                        isCorrect: false,
+                        points: 0,
+                        feedback: "THIẾU TRÁCH NHIỆM AN TOÀN! Trong trường hợp ít người qua lại, sự thờ ơ của em có thể làm lỡ mất 'thời gian vàng' cứu sống người bị nạn.",
+                        safeGuide: "Em không cần trực tiếp cấp cứu nhưng việc chạy vào phòng bảo vệ trường báo cho bác bảo vệ chỉ mất 15 giây!"
+                    }
+                ]
+            },
+            {
+                id: 4,
+                tag: "BẠO LỰC & BẮT NẠT",
+                urgency: "Đe dọa an toàn cá nhân",
+                icon: "fa-user-ninja",
+                title: "Bị nhóm bạn lạ chặn đường đe dọa, đòi tiền và dọa đánh",
+                desc: "Trên đường đi bộ về nhà qua đoạn đường vắng, một nhóm học sinh lớn hơn chặn đầu xe bạn, buông lời thóa mạ, dọa đánh và bắt nộp hết tiền tiêu vặt.",
+                options: [
+                    {
+                        text: "A. Nhảy vào đánh tay đôi với cả nhóm hoặc hẹn giờ ra bãi đất trống giải quyết.",
+                        isCorrect: false,
+                        points: 0,
+                        feedback: "RẤT NGUY HIỂM! Dùng bạo lực đáp trả bạo lực dễ dẫn đến thương tích nặng, vi phạm pháp luật và bị kỷ luật nghiêm khắc.",
+                        safeGuide: "Không thách thức đối phương khi họ đông người hoặc đang hung hăng kích động."
+                    },
+                    {
+                        text: "B. Giữ thái độ bình tĩnh, nhượng bộ tạm thời để tìm cơ hội chạy vào nơi đông người, báo ngay cha mẹ, thầy cô hoặc gọi 111.",
+                        isCorrect: true,
+                        points: 20,
+                        feedback: "QUYẾT ĐỊNH XUẤT SẮC! Ưu tiên bảo vệ thân thể là trên hết. Đưa tiền/tài sản nếu bị đe dọa vũ lực tức thì, sau đó tìm sự bảo vệ của người lớn.",
+                        safeGuide: "Chạy nhanh vào cửa hàng, nhà dân gần nhất hô hoán. Kể lại toàn bộ sự việc cho bố mẹ, thầy cô. Nếu bị đe dọa kéo dài, gọi Tổng đài Quốc gia Bảo vệ Trẻ em 111."
+                    },
+                    {
+                        text: "C. Im lặng chấp nhận đưa tiền định kỳ mỗi tuần và giấu kín không cho ai biết vì sợ trả thù.",
+                        isCorrect: false,
+                        points: 0,
+                        feedback: "SAI LẦM TAI HẠI! Càng im lặng kẻ bắt nạt càng lấn tới, số tiền đòi hỏi sẽ tăng lên và hành vi đe dọa sẽ kéo dài gây tổn thương tâm lý trầm trọng.",
+                        safeGuide: "Kẻ bắt nạt luôn sợ người lớn can thiệp. Chia sẻ với thầy cô và cha mẹ là giải pháp duy nhất để chấm dứt dứt điểm sự việc."
+                    },
+                    {
+                        text: "D. Rủ bạn bè mang hung khí đến tìm nhóm kia để 'trả thù' cho bõ tức.",
+                        isCorrect: false,
+                        points: 0,
+                        feedback: "VI PHẠM PHÁP LUẬT HÌNH SỰ! Hành vi tụ tập đánh nhau mang theo hung khí sẽ bị công an xử lý, có thể bị truy cứu hình sự và đuổi học.",
+                        safeGuide: "Báo ngay Công an phường/xã (113) hoặc Ban Giám hiệu nhà trường để có biện pháp can thiệp đúng pháp luật."
+                    }
+                ]
+            },
+            {
+                id: 5,
+                tag: "NGƯỜI LẠ KHẢ NGHI",
+                urgency: "Nguy cơ bắt cóc / Xâm hại",
+                icon: "fa-user-secret",
+                title: "Người lạ đi ô tô dừng lại bảo: 'Bố mẹ cháu bị tai nạn nhờ chú đón'",
+                desc: "Khi đứng đợi người nhà trước cổng trường sau giờ tan học, một người đàn ông lạ mặt hạ kính ô tô, tỏ vẻ hốt hoảng nói: 'Mẹ cháu bị ngã xe đang ở bệnh viện, chú là bạn mẹ, lên xe chú chở đến viện gấp!'.",
+                options: [
+                    {
+                        text: "A. Nghe vậy quá sợ hãi nên vội vàng mở cửa xe leo lên ngay để đến gặp mẹ.",
+                        isCorrect: false,
+                        points: 0,
+                        feedback: "NGUY CƠ BẮT CÓC CỰC KỲ CAO! Đây là thủ đoạn lừa đảo nguy hiểm của kẻ xấu nhằm đánh vào tâm lý hoảng loạn, lo lắng cho gia đình của học sinh.",
+                        safeGuide: "Tuyệt đối KHÔNG bước lên xe của bất kỳ ai nếu không có thông báo xác nhận trực tiếp từ chính cha mẹ."
+                    },
+                    {
+                        text: "B. Đứng sát cửa xe, tò mò hỏi han chi tiết xem mẹ bị thương ở đâu rồi mới tính tiếp.",
+                        isCorrect: false,
+                        points: 5,
+                        feedback: "NGUY HIỂM TIỀM ẨN! Đứng quá gần cửa xe (dưới 2 mét) tạo cơ hội cho kẻ gian kéo mạnh bạn vào trong ô tô rồi phóng đi.",
+                        safeGuide: "Luôn giữ khoảng cách an toàn tối thiểu 3 bước chân (trên 2-3 mét) với xe của người lạ."
+                    },
+                    {
+                        text: "C. Đứng lùi xa ra, kiên quyết từ chối, chạy ngay vào phòng bảo vệ trường nhờ gọi điện cho bố mẹ xác minh.",
+                        isCorrect: true,
+                        points: 20,
+                        feedback: "PHẢN XẠ VÀNG CHÍNH XÁC! Bạn đã giữ khoảng cách an toàn, bình tĩnh không bị mắc lừa và tìm đến đúng điểm tựa an toàn nhất (phòng bảo vệ trường).",
+                        safeGuide: "Nói to: 'Cháu không quen chú! Cháu sẽ vào báo thầy cô!' và chạy vào cổng trường. Nhờ bác bảo vệ gọi vào số điện thoại của bố mẹ để kiểm chứng thông tin."
+                    },
+                    {
+                        text: "D. Đứng lại to tiếng chửi bới thách thức người lạ mặt.",
+                        isCorrect: false,
+                        points: 5,
+                        feedback: "KHÔNG NÊN! Khiêu khích người lạ có thể kích động đối tượng manh động gây hại cho bạn nếu xung quanh vắng vẻ.",
+                        safeGuide: "Bình tĩnh, dứt khoát từ chối và nhanh chân di chuyển về nơi đông người hoặc phòng bảo vệ."
+                    }
+                ]
+            }
+        ];
+
+        let currentScenarioIndex = 0;
+        let totalScore = 0;
+        let hasAnswered = false;
+
+        // BẮT ĐẦU
+        function startChallenge() {
+            currentScenarioIndex = 0;
+            totalScore = 0;
+            document.getElementById('current-score').innerText = '0';
+            showScreen('screen-quiz');
+            loadScenario(currentScenarioIndex);
+        }
+
+        // VỀ TRANG CHỦ
+        function goToHome() {
+            showScreen('screen-home');
+        }
+
+        // CHUYỂN MÀN HÌNH
+        function showScreen(screenId) {
+            ['screen-home', 'screen-quiz', 'screen-result'].forEach(id => {
+                document.getElementById(id).classList.toggle('hidden', id !== screenId);
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // TẢI TÌNH HUỐNG
+        function loadScenario(index) {
+            hasAnswered = false;
+            const data = scenarios[index];
+
+            document.getElementById('quiz-progress-text').innerHTML = `<i class="fa-solid fa-layer-group text-blue-400"></i> Tình huống ${index + 1} / ${scenarios.length}`;
+            document.getElementById('progress-bar-fill').style.width = ((index + 1) / scenarios.length) * 100 + '%';
+
+            document.getElementById('scenario-tag').innerText = data.tag;
+            document.getElementById('scenario-urgency').innerHTML = `<i class="fa-solid fa-bolt text-amber-400"></i> ${data.urgency}`;
+            document.getElementById('scenario-icon').className = `fa-solid ${data.icon}`;
+            document.getElementById('scenario-title').innerText = data.title;
+            document.getElementById('scenario-desc').innerText = data.desc;
+
+            document.getElementById('ai-feedback').classList.add('hidden');
+
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+
+            data.options.forEach((opt, optIndex) => {
+                const btn = document.createElement('button');
+                btn.className = `option-btn w-full text-left p-4 sm:p-5 rounded-2xl bg-navy-800/80 hover:bg-navy-700/80 border border-slate-700 transition-all text-slate-200 text-base sm:text-lg font-medium flex items-start gap-3 hover:translate-x-1`;
+                btn.innerHTML = `
+                    <span class="w-8 h-8 rounded-xl bg-slate-800 border border-slate-600 flex items-center justify-center font-bold text-sm shrink-0 text-amber-400 mt-0.5">
+                        ${String.fromCharCode(65 + optIndex)}
+                    </span>
+                    <span class="flex-grow">${opt.text.substring(3)}</span>
+                `;
+                btn.onclick = () => selectOption(optIndex);
+                container.appendChild(btn);
+            });
+        }
+
+        // CHỌN ĐÁP ÁN
+        function selectOption(selectedIndex) {
+            if (hasAnswered) return;
+            hasAnswered = true;
+
+            const currentData = scenarios[currentScenarioIndex];
+            const chosen = currentData.options[selectedIndex];
+            totalScore += chosen.points;
+            document.getElementById('current-score').innerText = totalScore;
+
+            const buttons = document.querySelectorAll('.option-btn');
+            buttons.forEach((b, idx) => {
+                b.disabled = true;
+                b.classList.remove('hover:bg-navy-700/80', 'hover:translate-x-1');
+                if (currentData.options[idx].isCorrect) {
+                    b.classList.add('bg-emerald-950/90', 'border-emerald-500', 'text-emerald-200');
+                } else if (idx === selectedIndex) {
+                    b.classList.add('bg-red-950/90', 'border-alertRed-500', 'text-red-200');
+                } else {
+                    b.classList.add('opacity-40');
+                }
+            });
+
+            const feedbackBox = document.getElementById('ai-feedback');
+            const iconBox = document.getElementById('feedback-icon');
+            const verdictEl = document.getElementById('feedback-verdict');
+            const reasonEl = document.getElementById('feedback-reason');
+            const guideEl = document.getElementById('feedback-guide');
+            const btnNext = document.getElementById('btn-next');
+
+            feedbackBox.classList.remove('hidden');
+
+            if (chosen.isCorrect) {
+                feedbackBox.className = "mt-6 p-5 sm:p-6 rounded-2xl border bg-emerald-950/50 border-emerald-500/70 text-emerald-300";
+                iconBox.className = "w-9 h-9 rounded-xl flex items-center justify-center text-white text-lg font-bold bg-emerald-600";
+                iconBox.innerHTML = '<i class="fa-solid fa-check"></i>';
+                verdictEl.innerText = "SAFE AI: Lựa chọn rất chính xác! (+20 điểm)";
+                verdictEl.className = "text-xl sm:text-2xl font-black text-emerald-400";
+            } else {
+                feedbackBox.className = "mt-6 p-5 sm:p-6 rounded-2xl border bg-red-950/50 border-alertRed-500/70 text-red-300";
+                iconBox.className = "w-9 h-9 rounded-xl flex items-center justify-center text-white text-lg font-bold bg-alertRed-600";
+                iconBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+                verdictEl.innerText = chosen.points > 0 ? "SAFE AI: Chưa tối ưu! (+5 điểm)" : "SAFE AI: Quá nguy hiểm! (0 điểm)";
+                verdictEl.className = "text-xl sm:text-2xl font-black text-alertRed-400";
+            }
+
+            reasonEl.innerText = chosen.feedback;
+            guideEl.innerText = chosen.safeGuide;
+
+            if (currentScenarioIndex === scenarios.length - 1) {
+                btnNext.innerHTML = 'Xem kết quả tổng kết <i class="fa-solid fa-flag-checkered ml-2"></i>';
+                btnNext.className = "px-8 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-base rounded-xl shadow-lg transition-transform active:scale-95";
+            } else {
+                btnNext.innerHTML = 'Tình huống tiếp theo <i class="fa-solid fa-arrow-right ml-2"></i>';
+                btnNext.className = "px-8 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-base rounded-xl shadow-lg transition-transform active:scale-95";
+            }
+
+            feedbackBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // TÌNH HUỐNG TIẾP THEO
+        function nextQuestion() {
+            currentScenarioIndex++;
+            if (currentScenarioIndex < scenarios.length) {
+                loadScenario(currentScenarioIndex);
+            } else {
+                showResultScreen();
+            }
+        }
+
+        // TỔNG KẾT
+        function showResultScreen() {
+            showScreen('screen-result');
+            document.getElementById('final-score').innerText = totalScore;
+
+            const rankEl = document.getElementById('result-rank');
+            const levelEl = document.getElementById('final-level');
+            const iconBox = document.getElementById('result-badge-box');
+
+            if (totalScore >= 80) {
+                rankEl.innerText = "Huy hiệu Vàng: Hiệp Sĩ An Toàn Tối Cao";
+                levelEl.innerText = "Xuất Sắc";
+                levelEl.className = "text-2xl sm:text-3xl font-extrabold text-emerald-400";
+                iconBox.className = "w-24 h-24 mx-auto rounded-3xl bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center text-5xl mb-5 pulse-sos";
+                iconBox.innerHTML = '<i class="fa-solid fa-award"></i>';
+            } else if (totalScore >= 50) {
+                rankEl.innerText = "Huy hiệu Bạc: Người Bảo Vệ Tiềm Năng";
+                levelEl.innerText = "Khá (Cần rèn thêm)";
+                levelEl.className = "text-2xl sm:text-3xl font-extrabold text-blue-400";
+                iconBox.className = "w-24 h-24 mx-auto rounded-3xl bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center justify-center text-5xl mb-5";
+                iconBox.innerHTML = '<i class="fa-solid fa-shield-halved"></i>';
+            } else {
+                rankEl.innerText = "Huy hiệu Đồng: Chiến Binh Cần Học Hỏi Thêm";
+                levelEl.innerText = "Cảnh Báo Nguy Cơ";
+                levelEl.className = "text-2xl sm:text-3xl font-extrabold text-alertRed-400";
+                iconBox.className = "w-24 h-24 mx-auto rounded-3xl bg-alertRed-500/20 text-alertRed-500 border border-alertRed-500/40 flex items-center justify-center text-5xl mb-5";
+                iconBox.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+            }
+        }
+
+        // ĐIỀU KHIỂN MODAL TRỢ GIÚP KHẨN CẤP
+        function openEmergencyModal() {
+            document.getElementById('emergency-modal').classList.remove('hidden');
+        }
+
+        function closeEmergencyModal() {
+            document.getElementById('emergency-modal').classList.add('hidden');
+            stopSiren();
+        }
+
+        // ================= CÒI BÁO ĐỘNG SOS (WEB AUDIO API KHÔNG CẦN FILE NGOÀI) =================
+        let audioCtx = null;
+        let oscillator = null;
+        let isSirenPlaying = false;
+        let sirenInterval = null;
+
+        function toggleSiren() {
+            if (isSirenPlaying) {
+                stopSiren();
+            } else {
+                playSiren();
+            }
+        }
+
+        function playSiren() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.type = 'sawtooth';
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+
+                let high = false;
+                sirenInterval = setInterval(() => {
+                    if (!audioCtx) return;
+                    const freq = high ? 650 : 950;
+                    oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                    high = !high;
+                }, 350);
+
+                isSirenPlaying = true;
+                document.getElementById('siren-status-text').innerText = "Tắt còi báo động";
+                document.getElementById('btn-siren').className = "w-full sm:w-auto px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/50 font-extrabold rounded-xl text-sm shrink-0 flex items-center justify-center gap-2 shadow-lg";
+            } catch (e) {
+                console.error("Audio error:", e);
+                alert("Thiết bị chưa cho phép phát âm thanh trực tiếp.");
+            }
+        }
+
+        function stopSiren() {
+            if (sirenInterval) {
+                clearInterval(sirenInterval);
+                sirenInterval = null;
+            }
+            if (oscillator) {
+                try { oscillator.stop(); } catch(e){}
+                oscillator.disconnect();
+                oscillator = null;
+            }
+            if (audioCtx) {
+                try { audioCtx.close(); } catch(e){}
+                audioCtx = null;
+            }
+            isSirenPlaying = false;
+            const sirenText = document.getElementById('siren-status-text');
+            const sirenBtn = document.getElementById('btn-siren');
+            if (sirenText && sirenBtn) {
+                sirenText.innerText = "Bật còi hú SOS";
+                sirenBtn.className = "w-full sm:w-auto px-5 py-2.5 bg-alertRed-600 hover:bg-alertRed-500 text-white font-extrabold rounded-xl text-sm shrink-0 flex items-center justify-center gap-2 shadow-lg";
+            }
+        }
+
+        // ================= CHAT CÙNG SAFE AI (CLOUDFLARE WORKERS AI) =================
+        // Đã nối sẵn tới Cloudflare Worker của SAFE AI.
+        // Không đặt API key bí mật trong file HTML.
+        const SAFE_AI_API_URL = "https://safeai.danghieu3217.workers.dev/";
+        let chatIsSending = false;
+
+        function openChatModal() {
+            const modal = document.getElementById('chat-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => document.getElementById('chat-input')?.focus(), 100);
+        }
+
+        function closeChatModal() {
+            const modal = document.getElementById('chat-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function useChatPrompt(prompt) {
+            const input = document.getElementById('chat-input');
+            input.value = prompt;
+            input.focus();
+        }
+
+        function addChatMessage(text, role) {
+            const list = document.getElementById('chat-messages');
+            const row = document.createElement('div');
+            row.className = 'flex items-start gap-2.5 ' + (role === 'user' ? 'justify-end' : '');
+
+            if (role !== 'user') {
+                const avatar = document.createElement('div');
+                avatar.className = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-300';
+                avatar.innerHTML = '<i class="fa-solid fa-robot"></i>';
+                row.appendChild(avatar);
+            }
+
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-message max-w-[88%] p-3.5 text-sm leading-relaxed ' +
+                (role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai');
+            bubble.textContent = text;
+            row.appendChild(bubble);
+
+            if (role === 'user') {
+                const avatar = document.createElement('div');
+                avatar.className = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-500/20 text-blue-200';
+                avatar.innerHTML = '<i class="fa-solid fa-user"></i>';
+                row.appendChild(avatar);
+            }
+
+            list.appendChild(row);
+            list.scrollTop = list.scrollHeight;
+            return { row, bubble };
+        }
+
+        async function sendChatMessage(event) {
+            if (event) event.preventDefault();
+            if (chatIsSending) return;
+
+            const input = document.getElementById('chat-input');
+            const sendButton = document.getElementById('chat-send-btn');
+            const notice = document.getElementById('chat-config-notice');
+            const question = input.value.trim();
+            if (!question) return;
+
+            addChatMessage(question, 'user');
+            input.value = '';
+            chatIsSending = true;
+            sendButton.disabled = true;
+            sendButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span class="hidden sm:inline">Đang gửi</span>';
+
+            if (!SAFE_AI_API_URL || SAFE_AI_API_URL.includes('PASTE_YOUR_CLOUDFLARE_WORKER_URL_HERE')) {
+                addChatMessage('SAFE AI chưa thể kết nối. Hãy kiểm tra Cloudflare Worker và binding Workers AI có tên AI.', 'ai');
+                notice.classList.remove('hidden');
+            } else {
+                notice.classList.add('hidden');
+                const pending = addChatMessage('SAFE AI đang suy nghĩ…', 'ai');
+                try {
+                    const response = await fetch(SAFE_AI_API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ question })
+                    });
+                    let data = {};
+                    try { data = await response.json(); } catch (_) {}
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Máy chủ AI trả về lỗi (' + response.status + ').');
+                    }
+                    if (!data.answer || typeof data.answer !== 'string') {
+                        throw new Error('Máy chủ chưa trả về câu trả lời hợp lệ.');
+                    }
+                    pending.bubble.textContent = data.answer;
+                } catch (error) {
+                    pending.bubble.textContent = 'Mình chưa kết nối được với Cloudflare AI. Hãy kiểm tra Worker, binding Workers AI tên AI và nhật ký lỗi. Chi tiết: ' + (error.message || 'Lỗi kết nối.');
+                }
+                document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+            }
+
+            chatIsSending = false;
+            sendButton.disabled = false;
+            sendButton.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span class="hidden sm:inline">Gửi</span>';
+            input.focus();
+        }
+
+        // Đóng cửa sổ chat bằng phím Escape hoặc khi chạm nền ngoài hộp chat.
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') closeChatModal();
+        });
+        document.getElementById('chat-modal').addEventListener('click', function(event) {
+            if (event.target === this) closeChatModal();
+        });
+
+    </script>
+</body>
+</html>
